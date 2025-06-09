@@ -9,6 +9,12 @@ interface Route {
     handler: RouteHandler;
 }
 
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+};
+
 export class Router {
     private static instance: Router;
     private readonly routes: Route[];
@@ -55,6 +61,7 @@ export class Router {
             if (!route) {
                 return {
                     statusCode: 404,
+                    headers: corsHeaders,
                     body: JSON.stringify({ message: 'Route not found' }),
                 };
             }
@@ -64,6 +71,7 @@ export class Router {
             console.error('Error handling request:', error);
             return {
                 statusCode: 500,
+                headers: corsHeaders,
                 body: JSON.stringify({ message: 'Internal server error' }),
             };
         }

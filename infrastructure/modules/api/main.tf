@@ -114,20 +114,160 @@ resource "aws_api_gateway_method" "counter_decrement_options" {
   authorization = "NONE"
 }
 
+# CORS Response Models
+resource "aws_api_gateway_model" "empty" {
+  rest_api_id  = aws_api_gateway_rest_api.api.id
+  name         = "Empty"
+  description  = "Empty model for CORS"
+  content_type = "application/json"
+  schema       = jsonencode({
+    type = "object"
+  })
+}
+
+# CORS Method Responses
+resource "aws_api_gateway_method_response" "counter_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter.id
+  http_method = aws_api_gateway_method.counter_options.http_method
+  status_code = "200"
+  
+  response_models = {
+    "application/json" = "Empty"
+  }
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true,
+    "method.response.header.Access-Control-Allow-Methods" = true,
+    "method.response.header.Access-Control-Allow-Origin"  = true,
+    "method.response.header.Content-Type" = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "counter_increment_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter_increment.id
+  http_method = aws_api_gateway_method.counter_increment_options.http_method
+  status_code = "200"
+  
+  response_models = {
+    "application/json" = "Empty"
+  }
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true,
+    "method.response.header.Access-Control-Allow-Methods" = true,
+    "method.response.header.Access-Control-Allow-Origin"  = true,
+    "method.response.header.Content-Type" = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "counter_decrement_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter_decrement.id
+  http_method = aws_api_gateway_method.counter_decrement_options.http_method
+  status_code = "200"
+  
+  response_models = {
+    "application/json" = "Empty"
+  }
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true,
+    "method.response.header.Access-Control-Allow-Methods" = true,
+    "method.response.header.Access-Control-Allow-Origin"  = true,
+    "method.response.header.Content-Type" = true
+  }
+}
+
+# CORS Integration Responses
+resource "aws_api_gateway_integration_response" "counter_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter.id
+  http_method = aws_api_gateway_method.counter_options.http_method
+  status_code = aws_api_gateway_method_response.counter_options_200.status_code
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'",
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
+    "method.response.header.Content-Type" = "'application/json'"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "counter_increment_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter_increment.id
+  http_method = aws_api_gateway_method.counter_increment_options.http_method
+  status_code = aws_api_gateway_method_response.counter_increment_options_200.status_code
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'",
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
+    "method.response.header.Content-Type" = "'application/json'"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "counter_decrement_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter_decrement.id
+  http_method = aws_api_gateway_method.counter_decrement_options.http_method
+  status_code = aws_api_gateway_method_response.counter_decrement_options_200.status_code
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'",
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'",
+    "method.response.header.Content-Type" = "'application/json'"
+  }
+}
+
+# Mock integrations for OPTIONS methods
+resource "aws_api_gateway_integration" "counter_options" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter.id
+  http_method = aws_api_gateway_method.counter_options.http_method
+  type        = "MOCK"
+  
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_integration" "counter_increment_options" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter_increment.id
+  http_method = aws_api_gateway_method.counter_increment_options.http_method
+  type        = "MOCK"
+  
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_integration" "counter_decrement_options" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.counter_decrement.id
+  http_method = aws_api_gateway_method.counter_decrement_options.http_method
+  type        = "MOCK"
+  
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
 # Lambda integrations for /counter
 resource "aws_api_gateway_integration" "counter_get" {
   rest_api_id             = aws_api_gateway_rest_api.api.id
   resource_id             = aws_api_gateway_resource.counter.id
   http_method             = aws_api_gateway_method.counter_get.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = var.lambda_invoke_arn
-}
-
-resource "aws_api_gateway_integration" "counter_options" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.counter.id
-  http_method             = aws_api_gateway_method.counter_options.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = var.lambda_invoke_arn
@@ -143,29 +283,11 @@ resource "aws_api_gateway_integration" "counter_increment_post" {
   uri                     = var.lambda_invoke_arn
 }
 
-resource "aws_api_gateway_integration" "counter_increment_options" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.counter_increment.id
-  http_method             = aws_api_gateway_method.counter_increment_options.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = var.lambda_invoke_arn
-}
-
 # Lambda integrations for /counter/decrement
 resource "aws_api_gateway_integration" "counter_decrement_post" {
   rest_api_id             = aws_api_gateway_rest_api.api.id
   resource_id             = aws_api_gateway_resource.counter_decrement.id
   http_method             = aws_api_gateway_method.counter_decrement_post.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = var.lambda_invoke_arn
-}
-
-resource "aws_api_gateway_integration" "counter_decrement_options" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.counter_decrement.id
-  http_method             = aws_api_gateway_method.counter_decrement_options.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = var.lambda_invoke_arn
@@ -247,8 +369,9 @@ resource "aws_api_gateway_gateway_response" "default_4xx" {
 
   response_parameters = {
     "gatewayresponse.header.Access-Control-Allow-Origin"  = "'*'"
-    "gatewayresponse.header.Access-Control-Allow-Headers" = "'Content-Type'"
+    "gatewayresponse.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
     "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS'"
+    "gatewayresponse.header.Content-Type" = "'application/json'"
   }
 }
 
@@ -265,7 +388,8 @@ resource "aws_api_gateway_gateway_response" "default_5xx" {
 
   response_parameters = {
     "gatewayresponse.header.Access-Control-Allow-Origin"  = "'*'"
-    "gatewayresponse.header.Access-Control-Allow-Headers" = "'Content-Type'"
+    "gatewayresponse.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
     "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS'"
+    "gatewayresponse.header.Content-Type" = "'application/json'"
   }
 } 
