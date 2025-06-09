@@ -60,10 +60,12 @@ resource "aws_iam_role" "lambda_role" {
 module "lambda" {
   source = "./modules/lambda"
 
-  name             = local.name
-  lambda_image_uri = var.lambda_image_uri
+  name              = local.name
+  lambda_image_uri  = var.lambda_image_uri
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
+  lambda_role_arn  = aws_iam_role.lambda_role.arn
+  dynamodb_table_name = aws_dynamodb_table.counter.name
   tags             = local.common_tags
 }
 
