@@ -114,17 +114,6 @@ resource "aws_api_gateway_method" "counter_decrement_options" {
   authorization = "NONE"
 }
 
-# CORS Response Models
-resource "aws_api_gateway_model" "empty" {
-  rest_api_id  = aws_api_gateway_rest_api.api.id
-  name         = "Empty"
-  description  = "Empty model for CORS"
-  content_type = "application/json"
-  schema       = jsonencode({
-    type = "object"
-  })
-}
-
 # CORS Method Responses
 resource "aws_api_gateway_method_response" "counter_options_200" {
   rest_api_id = aws_api_gateway_rest_api.api.id
