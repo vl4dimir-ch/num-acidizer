@@ -28,13 +28,14 @@ import_or_create() {
 ENV=$1
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# Import Lambda function
+# Handle Lambda function
 LAMBDA_NAME="acidizer-${ENV}-backend"
 if LAMBDA_INFO=$(aws lambda get-function --function-name $LAMBDA_NAME 2>&1); then
-  echo "✅ Lambda function exists"
-  if ! terraform state list | grep -q "module.lambda.aws_lambda_function.backend"; then
-    terraform import module.lambda.aws_lambda_function.backend $LAMBDA_NAME
-  fi
+  echo "🗑️ Deleting existing Lambda function..."
+  aws lambda delete-function --function-name $LAMBDA_NAME
+  echo "✅ Lambda function deleted - will be recreated by Terraform"
+else
+  echo "✨ Lambda function doesn't exist, will be created by Terraform"
 fi
 
 # Import other resources
