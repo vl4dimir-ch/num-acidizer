@@ -4,9 +4,9 @@
 resource_exists() {
   local check_command=$1
   if eval "$check_command" > /dev/null 2>&1; then
-    return 0  # Resource exists
+    return 0
   else
-    return 1  # Resource doesn't exist
+    return 1
   fi
 }
 
@@ -59,15 +59,25 @@ import_or_create \
   "terraform import module.frontend.aws_s3_bucket.frontend vc0-acidizer-${ENV}-frontend"
 
 # Import CloudWatch resources
-import_or_create \
-  "API Gateway Log Group" \
-  "aws logs describe-log-groups --log-group-name-prefix /aws/apigateway/acidizer-${ENV}" \
-  "terraform import module.monitoring.aws_cloudwatch_log_group.api_logs /aws/apigateway/acidizer-${ENV}"
+echo "🔍 Checking CloudWatch Log Groups..."
 
-import_or_create \
-  "Lambda Log Group" \
-  "aws logs describe-log-groups --log-group-name-prefix /aws/lambda/acidizer-${ENV}-backend" \
-  "terraform import module.monitoring.aws_cloudwatch_log_group.lambda_logs /aws/lambda/acidizer-${ENV}-backend"
+# API Gateway Log Group
+LOG_GROUP_NAME="/aws/apigateway/acidizer-${ENV}"
+if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" --query "logGroups[?logGroupName=='$LOG_GROUP_NAME'].logGroupName" --output text | grep -q .; then
+  echo "📥 API Gateway Log Group exists, importing to Terraform..."
+  terraform import module.monitoring.aws_cloudwatch_log_group.api_logs "$LOG_GROUP_NAME" || echo "⚠️ Import failed - resource may already be in state"
+else
+  echo "✨ API Gateway Log Group doesn't exist yet, will be created by Terraform"
+fi
+
+# Lambda Log Group
+LOG_GROUP_NAME="/aws/lambda/acidizer-${ENV}-backend"
+if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" --query "logGroups[?logGroupName=='$LOG_GROUP_NAME'].logGroupName" --output text | grep -q .; then
+  echo "📥 Lambda Log Group exists, importing to Terraform..."
+  terraform import module.monitoring.aws_cloudwatch_log_group.lambda_logs "$LOG_GROUP_NAME" || echo "⚠️ Import failed - resource may already be in state"
+else
+  echo "✨ Lambda Log Group doesn't exist yet, will be created by Terraform"
+fi
 
 # Setup API Gateway resources
 REST_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='acidizer-${ENV}-api'].id" --output text)

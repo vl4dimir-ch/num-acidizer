@@ -76,10 +76,10 @@ jobs:
         working-directory: ./infrastructure
         env:
           TF_VAR_environment: ${{ steps.set-env.outputs.environment }}
-          TF_VAR_lambda_image_uri: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/acidizer-{2}-backend:latest', 
+          TF_VAR_lambda_image_uri: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/{2}:latest', 
             steps.set-env.outputs.account_id, 
-            env.AWS_REGION, 
-            steps.set-env.outputs.environment) }}
+            env.AWS_REGION,
+            steps.set-env.outputs.ecr_repo) }}
         run: |
           echo "🏗️ Initializing Terraform..."
           terraform init
