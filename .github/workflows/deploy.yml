@@ -66,9 +66,15 @@ jobs:
 
           echo "🏗️ Building and pushing Docker image..."
           ECR_URI=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO
-          docker build --no-cache -t $ECR_URI:latest .
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          docker build --no-cache -t $ECR_URI:latest -t $ECR_URI:$TIMESTAMP .
           
           docker push $ECR_URI:latest
+          docker push $ECR_URI:$TIMESTAMP
+
+          # Force Lambda update to use new image
+          aws lambda update-function-code --function-name acidizer-${{ steps.set-env.outputs.environment }} \
+            --image-uri $ECR_URI:$TIMESTAMP
 
           echo "✅ Backend image built and pushed successfully"
 
