@@ -1,0 +1,50 @@
+name: Test Workflow
+on:
+  workflow_call:
+
+jobs:
+  test-backend:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+        with:
+          cache-path: backend/package-lock.json
+
+      - name: Test backend
+        working-directory: ./backend
+        run: |
+          echo "📦 Installing backend dependencies..."
+          npm ci
+
+          echo "🏗️ Building backend..."
+          npm run build
+
+          echo "🔍 Linting backend..."
+          npm run lint
+
+          echo "🧪 Testing backend..."
+          npm test
+
+          echo "✅ Backend checks completed successfully"
+
+  test-frontend:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node
+        with:
+          cache-path: frontend/package-lock.json
+
+      - name: Test frontend
+        working-directory: ./frontend
+        run: |
+          echo "📦 Installing frontend dependencies..."
+          npm ci
+
+          echo "🔍 Linting frontend..."
+          npm run lint
+
+          echo "✅ Frontend checks completed successfully" 

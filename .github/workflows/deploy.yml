@@ -1,0 +1,136 @@
+name: Deploy Number Acidizer Full Stack
+
+on:
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+    branches: [main, dev]
+    paths-ignore:
+      - 'README.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: ./.github/actions/setup-node
+        with:
+          cache-path: backend/package-lock.json
+
+      - uses: ./.github/actions/setup-aws-terraform
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set environment
+        id: set-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "ecr_repo=acidizer-backend" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "ecr_repo=acidizer-backend-dev" >> $GITHUB_OUTPUT
+          fi
+          echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend
+        working-directory: ./backend
+        env:
+          ECR_REPO: ${{ steps.set-env.outputs.ecr_repo }}
+        run: |
+          echo "🔧 Setting up ECR repository..."
+          aws ecr describe-repositories --repository-names $ECR_REPO || \
+          aws ecr create-repository --repository-name $ECR_REPO
+
+          echo "🔑 Logging into ECR..."
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com
+
+          echo "🏗️ Building and pushing Docker image..."
+          ECR_URI=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO
+          docker build -t $ECR_URI:latest .
+          
+          docker push $ECR_URI:latest
+
+          echo "✅ Backend image built and pushed successfully"
+
+      - name: Setup AWS resources and imports
+        working-directory: ./infrastructure
+        env:
+          TF_VAR_environment: ${{ steps.set-env.outputs.environment }}
+          TF_VAR_lambda_image_uri: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/acidizer-{2}-backend:latest', 
+            steps.set-env.outputs.account_id, 
+            env.AWS_REGION, 
+            steps.set-env.outputs.environment) }}
+        run: |
+          echo "🏗️ Initializing Terraform..."
+          terraform init
+
+          echo "🔧 Running resource imports..."
+          chmod +x ./scripts/import-resources.sh
+          ./scripts/import-resources.sh ${{ steps.set-env.outputs.environment }}
+
+          echo "🚀 Running Terraform plan..."
+          terraform plan
+
+          echo "🚀 Applying Terraform changes..."
+          terraform apply -auto-approve
+
+      - name: Build and deploy frontend
+        working-directory: ./infrastructure
+        run: |
+          echo "🔍 Getting deployment URLs..."
+          API_URL=$(terraform output -raw api_url)
+          FRONTEND_BUCKET=$(terraform output -raw frontend_bucket)
+
+          echo "🔗 Backend API URL: $API_URL"
+          echo "📦 Frontend bucket: $FRONTEND_BUCKET"
+
+          cd ../frontend
+          export PUBLIC_API_URL="$API_URL"
+
+          echo "📦 Installing frontend dependencies..."
+          npm ci
+
+          echo "🏗️ Building frontend..."
+          npm run build
+
+          echo "🚀 Deploying to S3..."
+          aws s3 sync ./dist/ s3://$FRONTEND_BUCKET --delete
+
+          echo "✅ Frontend deployed successfully"
+
+      - name: Test deployment
+        id: deployment-test
+        working-directory: ./infrastructure
+        run: |
+          API_URL=$(terraform output -raw api_url)
+          FRONTEND_URL=$(terraform output -raw frontend_url)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "frontend_url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "🎉 Deployment successful!"
+
+      - name: Create Job Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "* **Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Backend URL:** ${{ steps.deployment-test.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Frontend URL:** ${{ steps.deployment-test.outputs.frontend_url }}" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,373 @@
+name: Deploy Number Acidizer Full Stack
+
+on:
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+    branches: [main, dev]
+    paths-ignore:
+      - 'README.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  test-backend:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Test backend
+        working-directory: ./backend
+        run: |
+          echo "📦 Installing backend dependencies..."
+          if ! npm ci; then
+            echo "❌ Backend npm install failed"
+            exit 1
+          fi
+
+          echo "🏗️ Building backend..."
+          if ! npm run build; then
+            echo "❌ Backend build failed"
+            exit 1
+          fi
+
+          echo "🔍 Linting backend..."
+          if ! npm run lint; then
+            echo "❌ Backend lint failed"
+            exit 1
+          fi
+
+          echo "🧪 Testing backend..."
+          if ! npm test; then
+            echo "❌ Backend tests failed"
+            exit 1
+          fi
+
+          echo "✅ Backend checks completed successfully"
+
+  test-frontend:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Test frontend
+        working-directory: ./frontend
+        run: |
+          echo "📦 Installing frontend dependencies..."
+          if ! npm ci; then
+            echo "❌ Frontend npm install failed"
+            exit 1
+          fi
+
+          echo "🔍 Linting frontend..."
+          if ! npm run lint; then
+            echo "❌ Frontend lint failed"
+            exit 1
+          fi
+
+          echo "✅ Frontend checks completed successfully"
+
+  deploy:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Cache Terraform
+        uses: actions/cache@v3
+        with:
+          path: .terraform
+          key: terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            terraform-
+
+      - name: Set environment
+        id: set-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "ecr_repo=acidizer-backend" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "ecr_repo=acidizer-backend-dev" >> $GITHUB_OUTPUT
+          fi
+          echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend
+        working-directory: ./backend
+        env:
+          ECR_REPO: ${{ steps.set-env.outputs.ecr_repo }}
+        run: |
+          echo "🔧 Setting up ECR repository..."
+          aws ecr describe-repositories --repository-names $ECR_REPO || \
+          aws ecr create-repository --repository-name $ECR_REPO
+
+          echo "🔑 Logging into ECR..."
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com
+
+          echo "🏗️ Building and pushing Docker image..."
+          ECR_URI=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO
+          if ! docker build -t $ECR_URI:latest .; then
+            echo "❌ Docker build failed"
+            exit 1
+          fi
+          
+          if ! docker push $ECR_URI:latest; then
+            echo "❌ Docker push failed"
+            exit 1
+          fi
+
+          echo "✅ Backend image built and pushed successfully"
+
+      - name: Setup AWS resources and imports
+        working-directory: ./infrastructure
+        env:
+          TF_VAR_environment: ${{ steps.set-env.outputs.environment }}
+          TF_VAR_lambda_image_uri: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/acidizer-{2}-backend:latest', 
+            steps.set-env.outputs.account_id, 
+            env.AWS_REGION, 
+            steps.set-env.outputs.environment) }}
+        run: |
+          echo "🏗️ Initializing Terraform..."
+          terraform init
+
+          ENV=${{ steps.set-env.outputs.environment }}
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          # Debug Lambda function state
+          echo "🔍 Checking Lambda function state..."
+          LAMBDA_NAME="acidizer-${ENV}-backend"
+          
+          echo "Attempting to get Lambda function info..."
+          if LAMBDA_INFO=$(aws lambda get-function --function-name $LAMBDA_NAME 2>&1); then
+            echo "✅ Lambda function exists:"
+            echo "$LAMBDA_INFO"
+            
+            echo "📥 Importing Lambda function to Terraform state..."
+            if terraform state list | grep -q "module.lambda.aws_lambda_function.backend"; then
+              echo "⚠️ Lambda function already in Terraform state, skipping import"
+            else
+              echo "Importing Lambda function..."
+              terraform import module.lambda.aws_lambda_function.backend $LAMBDA_NAME
+            fi
+            
+            # Update the function configuration if needed
+            echo "🔄 Updating Lambda function configuration..."
+            aws lambda update-function-configuration \
+              --function-name $LAMBDA_NAME \
+              --environment "Variables={DYNAMODB_TABLE_NAME=acidizer-${ENV}-counter}" || echo "⚠️ Lambda config update failed - continuing..."
+            
+            # Update the function code (image)
+            echo "🔄 Updating Lambda function code..."
+            aws lambda update-function-code \
+              --function-name $LAMBDA_NAME \
+              --image-uri ${TF_VAR_lambda_image_uri} || echo "⚠️ Lambda code update failed - continuing..."
+          else
+            echo "❌ Lambda function check failed or function doesn't exist:"
+            echo "$LAMBDA_INFO"
+            echo "✨ Lambda function will be created by Terraform"
+          fi
+
+          # Helper function to check if a resource exists
+          resource_exists() {
+            local check_command=$1
+            if eval "$check_command" > /dev/null 2>&1; then
+              return 0  # Resource exists
+            else
+              return 1  # Resource doesn't exist
+            fi
+          }
+
+          # Helper function to import or create resources
+          import_or_create() {
+            local resource_type=$1
+            local check_command=$2
+            local import_command=$3
+            
+            echo "🔍 Checking ${resource_type}..."
+            if resource_exists "$check_command"; then
+              echo "📥 ${resource_type} exists, importing to Terraform..."
+              eval "$import_command" || echo "⚠️ Import failed - resource may already be in state"
+            else
+              echo "✨ ${resource_type} doesn't exist, will be created by Terraform"
+            fi
+          }
+
+          # ECR Repository
+          import_or_create \
+            "ECR Repository" \
+            "aws ecr describe-repositories --repository-names vc0-acidizer-${ENV}-backend" \
+            "terraform import aws_ecr_repository.backend vc0-acidizer-${ENV}-backend"
+
+          # DynamoDB Table
+          import_or_create \
+            "DynamoDB Table" \
+            "aws dynamodb describe-table --table-name acidizer-${ENV}-counter" \
+            "terraform import aws_dynamodb_table.counter acidizer-${ENV}-counter"
+
+          # IAM Role
+          import_or_create \
+            "IAM Role" \
+            "aws iam get-role --role-name acidizer-${ENV}-lambda-role" \
+            "terraform import aws_iam_role.lambda_role acidizer-${ENV}-lambda-role"
+
+          # S3 Bucket
+          import_or_create \
+            "S3 Bucket" \
+            "aws s3api head-bucket --bucket vc0-acidizer-${ENV}-frontend" \
+            "terraform import module.frontend.aws_s3_bucket.frontend vc0-acidizer-${ENV}-frontend"
+
+          # CloudWatch Log Groups
+          import_or_create \
+            "API Gateway Log Group" \
+            "aws logs describe-log-groups --log-group-name-prefix /aws/apigateway/acidizer-${ENV}" \
+            "terraform import module.monitoring.aws_cloudwatch_log_group.api_logs /aws/apigateway/acidizer-${ENV}"
+
+          import_or_create \
+            "Lambda Log Group" \
+            "aws logs describe-log-groups --log-group-name-prefix /aws/lambda/acidizer-${ENV}-backend" \
+            "terraform import module.monitoring.aws_cloudwatch_log_group.lambda_logs /aws/lambda/acidizer-${ENV}-backend"
+
+          # Handle API Gateway stage and deployment
+          echo "🔧 Setting up API Gateway resources..."
+          # Get the REST API ID
+          REST_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='acidizer-${ENV}-api'].id" --output text)
+          
+          if [ ! -z "$REST_API_ID" ]; then
+            echo "Found existing API Gateway with ID: $REST_API_ID"
+            
+            # Check if stage exists
+            if aws apigateway get-stage --rest-api-id $REST_API_ID --stage-name ${ENV} >/dev/null 2>&1; then
+              echo "Stage ${ENV} exists, importing..."
+              # Import the stage if it exists
+              terraform import module.api.aws_api_gateway_stage.api ${REST_API_ID}/${ENV} || echo "⚠️ Stage import failed - may already be in state"
+              
+              # Import the usage plan if it exists
+              USAGE_PLAN_ID=$(aws apigateway get-usage-plans --query "items[?name=='acidizer-${ENV}-usage-plan'].id" --output text)
+              if [ ! -z "$USAGE_PLAN_ID" ]; then
+                echo "Importing usage plan..."
+                terraform import module.api.aws_api_gateway_usage_plan.api_plan $USAGE_PLAN_ID || echo "⚠️ Usage plan import failed - may already be in state"
+              fi
+            else
+              echo "Stage ${ENV} doesn't exist, will be created by Terraform"
+            fi
+          else
+            echo "API Gateway doesn't exist yet, will be created by Terraform"
+          fi
+
+          # Set up CloudWatch Logs role for API Gateway if it doesn't exist
+          if ! aws apigateway get-account 2>/dev/null | grep -q "cloudwatchRoleArn"; then
+            echo "🔧 Setting up CloudWatch Logs role for API Gateway..."
+            # Create the role if it doesn't exist
+            if ! aws iam get-role --role-name api-gateway-cloudwatch-logs 2>/dev/null; then
+              aws iam create-role \
+                --role-name api-gateway-cloudwatch-logs \
+                --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"apigateway.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+              
+              aws iam attach-role-policy \
+                --role-name api-gateway-cloudwatch-logs \
+                --policy-arn arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+              
+              # Wait a bit for role propagation
+              echo "⏳ Waiting for IAM role propagation..."
+              sleep 10
+            fi
+            
+            # Update API Gateway account settings
+            aws apigateway update-account \
+              --patch-operations op='replace',path='/cloudwatchRoleArn',value="arn:aws:iam::${ACCOUNT_ID}:role/api-gateway-cloudwatch-logs" || \
+              echo "⚠️ CloudWatch role update failed - continuing..."
+          fi
+
+          echo "🚀 Running Terraform plan..."
+          terraform plan
+
+          echo "🚀 Applying Terraform changes..."
+          terraform apply -auto-approve
+
+      - name: Build and deploy frontend
+        working-directory: ./infrastructure
+        run: |
+          echo "🔍 Getting deployment URLs..."
+          API_URL=$(terraform output -raw api_url)
+          FRONTEND_BUCKET=$(terraform output -raw frontend_bucket)
+
+          echo "🔗 Backend API URL: $API_URL"
+          echo "📦 Frontend bucket: $FRONTEND_BUCKET"
+
+          cd ../frontend
+          export NEXT_PUBLIC_API_URL="$API_URL"
+
+          echo "📦 Installing frontend dependencies..."
+          if ! npm ci; then
+            echo "❌ Frontend npm install failed"
+            exit 1
+          fi
+
+          echo "🏗️ Building frontend..."
+          if ! npm run build; then
+            echo "❌ Frontend build failed"
+            exit 1
+          fi
+
+          echo "🚀 Deploying to S3..."
+          if ! aws s3 sync ./dist/ s3://$FRONTEND_BUCKET --delete; then
+            echo "❌ Frontend deployment to S3 failed"
+            exit 1
+          fi
+
+          echo "✅ Frontend deployed successfully"
+
+      - name: Test deployment
+        id: deployment-test
+        working-directory: ./infrastructure
+        run: |
+          API_URL=$(terraform output -raw api_url)
+          FRONTEND_URL=$(terraform output -raw frontend_url)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "frontend_url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "🎉 Deployment successful!"
+
+      - name: Create Job Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "* **Environment:** ${{ steps.set-env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Backend URL:** ${{ steps.deployment-test.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Frontend URL:** ${{ steps.deployment-test.outputs.frontend_url }}" >> $GITHUB_STEP_SUMMARY
