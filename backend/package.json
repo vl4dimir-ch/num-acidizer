@@ -1,7 +1,7 @@
 {
-  "name": "hello-world-lambda",
+  "name": "acidizer-backend",
   "version": "1.0.0",
-  "description": "A simple Hello World Lambda function",
+  "description": "Acidizer Backend",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

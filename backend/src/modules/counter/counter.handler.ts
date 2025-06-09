@@ -1,7 +1,7 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
 import { CounterService } from './counter.service';
 import { COUNTER_ERRORS } from './constants/counter.errors';
-import { GLOBAL_ERRORS } from '@/utils/constants/global.errors';
+import { GLOBAL_ERRORS } from '../../utils/constants/global.errors';
 
 export class CounterHandler {
   private readonly counterService: CounterService;
