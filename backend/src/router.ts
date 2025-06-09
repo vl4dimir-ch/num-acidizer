@@ -1,6 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { CounterHandler } from './modules/counter/counter.handler';
-import { HelloWorldHandler } from './modules/hello/hello.handler';
 
 type RouteHandler = (event: APIGatewayProxyEvent) => Promise<APIGatewayProxyResult>;
 
@@ -14,21 +13,14 @@ export class Router {
     private static instance: Router;
     private readonly routes: Route[];
 
-    private readonly helloHandler: HelloWorldHandler;
     private readonly counterHandler: CounterHandler;
 
     private constructor() {
         // Initialize handlers
-        this.helloHandler = new HelloWorldHandler();
         this.counterHandler = new CounterHandler();
 
         // Define routes
         this.routes = [
-            {
-                path: '/hello',
-                method: 'GET',
-                handler: (): Promise<APIGatewayProxyResult> => this.helloHandler.handle(),
-            },
             {
                 path: '/counter',
                 method: 'GET',

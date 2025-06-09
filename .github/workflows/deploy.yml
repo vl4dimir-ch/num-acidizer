@@ -66,7 +66,7 @@ jobs:
 
           echo "🏗️ Building and pushing Docker image..."
           ECR_URI=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO
-          docker build -t $ECR_URI:latest .
+          docker build --no-cache -t $ECR_URI:latest .
           
           docker push $ECR_URI:latest
 
