@@ -1,10 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { HelloWorldHandler } from './handlers/hello.handler';
+import { Router } from './router';
 
-const handler = new HelloWorldHandler();
- 
-export const lambdaHandler = async (
+export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
-  return handler.handle(event);
-}; 
+  const router = Router.getInstance();
+  return router.handleRequest(event);
+};

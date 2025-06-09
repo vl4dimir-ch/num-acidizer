@@ -1,5 +1,5 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { HelloWorldService } from '../services/hello.service';
+import { APIGatewayProxyResult } from 'aws-lambda';
+import { HelloWorldService } from './hello.service';
 
 export class HelloWorldHandler {
   private readonly helloWorldService: HelloWorldService;
@@ -8,7 +8,7 @@ export class HelloWorldHandler {
     this.helloWorldService = new HelloWorldService();
   }
 
-  public async handle(_event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  public async handle(): Promise<APIGatewayProxyResult> {
     try {
       const message = await this.helloWorldService.getMessage();
       
