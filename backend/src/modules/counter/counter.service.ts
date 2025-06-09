@@ -34,7 +34,7 @@ export class CounterService {
   async addToCounter(amount: number): Promise<number> {
     try {
       const updateExpression = 'SET #val = if_not_exists(#val, :zero) + :amount';
-      const conditionExpression = 'attribute_exists(#val) AND (#val BETWEEN :minValue AND :maxValue)';
+      const conditionExpression = 'attribute_not_exists(#val) OR (#val BETWEEN :minValue AND :maxValue)';
 
       const result = await this.dynamoDBService.updateItem(
         this.tableName,
@@ -60,14 +60,5 @@ export class CounterService {
       }
       throw error;
     }
-  }
-
-  async initializeCounter(initialValue = 0): Promise<void> {
-    const item: CounterItem = {
-      id: COUNTER_CONSTS.COUNTER_ID,
-      value: initialValue,
-    };
-
-    await this.dynamoDBService.putItem(this.tableName, item);
   }
 }
