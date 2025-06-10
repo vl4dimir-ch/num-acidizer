@@ -65,12 +65,12 @@ export const useCounterWithStore = () => {
   const increment = useCallback(() => {
     trackAction();
     return api.increment();
-  }, [api.increment, trackAction]);
+  }, [api, trackAction]);
   
   const decrement = useCallback(() => {
     trackAction();
     return api.decrement();
-  }, [api.decrement, trackAction]);
+  }, [api, trackAction]);
   
   useEffect(() => {
     if (api.counter !== undefined) {
@@ -99,7 +99,7 @@ export const useCounterWithStore = () => {
         clearInterval(pollingInterval.current);
       }
     };
-  }, [api.refetch, api.isIncrementing, api.isDecrementing]);
+  }, [api]);
   
   const currentCount = api.counter ?? localCount;
   
