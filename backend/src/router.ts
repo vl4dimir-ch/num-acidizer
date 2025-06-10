@@ -1,5 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { CounterHandler } from './modules/counter/counter.handler';
+import { createErrorResponse } from './utils/api.utils';
+import { GLOBAL_ERRORS } from './utils/constants/global.errors';
 
 type RouteHandler = (event: APIGatewayProxyEvent) => Promise<APIGatewayProxyResult>;
 
@@ -9,12 +11,6 @@ interface Route {
     handler: RouteHandler;
 }
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-};
-
 export class Router {
     private static instance: Router;
     private readonly routes: Route[];
@@ -22,10 +18,8 @@ export class Router {
     private readonly counterHandler: CounterHandler;
 
     private constructor() {
-        // Initialize handlers
         this.counterHandler = new CounterHandler();
 
-        // Define routes
         this.routes = [
             {
                 path: '/counter',
@@ -59,21 +53,13 @@ export class Router {
             );
 
             if (!route) {
-                return {
-                    statusCode: 404,
-                    headers: corsHeaders,
-                    body: JSON.stringify({ message: 'Route not found' }),
-                };
+                return createErrorResponse(GLOBAL_ERRORS.ROUTE_NOT_FOUND);
             }
 
             return await route.handler(event);
         } catch (error) {
             console.error('Error handling request:', error);
-            return {
-                statusCode: 500,
-                headers: corsHeaders,
-                body: JSON.stringify({ message: 'Internal server error' }),
-            };
+            return createErrorResponse(GLOBAL_ERRORS.INTERNAL_SERVER_ERROR);
         }
     }
 }
