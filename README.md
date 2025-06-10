@@ -1,6 +1,6 @@
 # Acidizer - Distributed Counter Application
 
-🚀 **Live Demo**: [https://d2us4nrv44pbhu.cloudfront.net/](https://d2us4nrv44pbhu.cloudfront.net/)
+🚀 **Live Demo**: [https://d21hsg4tpvunc4.cloudfront.net](https://d21hsg4tpvunc4.cloudfront.net/)
 
 ## Overview
 
