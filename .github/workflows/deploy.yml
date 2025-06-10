@@ -105,7 +105,7 @@ jobs:
           echo "📦 Frontend bucket: $FRONTEND_BUCKET"
 
           cd ../frontend
-          export PUBLIC_API_URL="$API_URL"
+          export VITE_API_URL="$API_URL"
 
           echo "📦 Installing frontend dependencies..."
           npm ci

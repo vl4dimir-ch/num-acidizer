@@ -1,54 +1,64 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React frontend application built with Vite, TanStack Query, and Zustand.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Counter Management**: Get and update counter values via API
+- **TanStack Query**: Efficient data fetching with caching and optimistic updates
+- **Zustand**: Lightweight state management
+- **Native Fetch**: HTTP client with proper error handling
+- **TypeScript**: Full type safety
+- **Tailwind CSS**: Modern styling
 
-## Expanding the ESLint configuration
+## Environment Setup
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Create a `.env.local` file in the frontend directory with:
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```env
+VITE_API_URL=http://localhost:3000/api
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Replace the URL with your actual API endpoint.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Getting Started
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
+
+## Architecture
+
+### API Integration
+- **API Client**: Native fetch-based client with error handling (`src/lib/api/client.ts`)
+- **Counter API**: Typed API service for counter operations (`src/features/counter/api/`)
+- **TanStack Query Hooks**: React hooks for data fetching and mutations (`src/features/counter/hooks/`)
+
+### State Management
+- **Zustand Store**: Local state management with API integration (`src/stores/counterStore.ts`)
+- **Combined Hook**: Unified interface combining API and local state (`useCounterWithStore`)
+
+### Components
+- **Counter Component**: Main counter interface with loading states and error handling
+- **Optimistic Updates**: Immediate UI feedback with rollback on errors
+- **Smooth Animations**: Animated counter value transitions
+
+## API Endpoints
+
+- `GET /counter` - Get current counter value
+- `POST /counter/increment` - Increment counter by 1
+- `POST /counter/decrement` - Decrement counter by 1
+
+## Error Handling
+
+- Network errors with retry logic
+- API errors with user-friendly messages
+- Optimistic updates with automatic rollback
+- Loading states for better UX
