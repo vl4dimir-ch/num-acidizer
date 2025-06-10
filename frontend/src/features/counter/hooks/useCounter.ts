@@ -1,99 +1,124 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { counterApi } from '../api/counter.api';
-import type { CounterResponse } from '../api/counter.types';
 
-export const COUNTER_QUERY_KEY = ['counter'] as const;
-
-export const useCounterQuery = () => {
-  return useQuery({
-    queryKey: COUNTER_QUERY_KEY,
-    queryFn: counterApi.getCounter,
-    staleTime: 30e3
-  });
-};
-
-export const useIncrementCounter = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: counterApi.incrementCounter,
-    onMutate: async (): Promise<{ previousValue: CounterResponse | undefined }> => {
-      // Cancel outgoing refetches so they don't overwrite optimistic update
-      await queryClient.cancelQueries({ queryKey: COUNTER_QUERY_KEY });
-
-      // Snapshot the previous value
-      const previousValue = queryClient.getQueryData<CounterResponse>(COUNTER_QUERY_KEY);
-
-      // Optimistically update to the expected value
-      if (previousValue) {
-        queryClient.setQueryData<CounterResponse>(COUNTER_QUERY_KEY, {
-          value: previousValue.value + 1,
-        });
-      }
-
-      return { previousValue };
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData<CounterResponse>(COUNTER_QUERY_KEY, data);
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previousValue) {
-        queryClient.setQueryData(COUNTER_QUERY_KEY, context.previousValue);
-      }
-    },
-  });
-};
-
-export const useDecrementCounter = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: counterApi.decrementCounter,
-    onMutate: async (): Promise<{ previousValue: CounterResponse | undefined }> => {
-      // Cancel outgoing refetches so they don't overwrite optimistic update
-      await queryClient.cancelQueries({ queryKey: COUNTER_QUERY_KEY });
-
-      // Snapshot the previous value
-      const previousValue = queryClient.getQueryData<CounterResponse>(COUNTER_QUERY_KEY);
-
-      // Optimistically update to the expected value
-      if (previousValue) {
-        queryClient.setQueryData<CounterResponse>(COUNTER_QUERY_KEY, {
-          value: previousValue.value - 1,
-        });
-      }
-
-      return { previousValue };
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData<CounterResponse>(COUNTER_QUERY_KEY, data);
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previousValue) {
-        queryClient.setQueryData(COUNTER_QUERY_KEY, context.previousValue);
-      }
-    },
-  });
-};
+interface CounterState {
+  counter: number | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  isIncrementing: boolean;
+  isDecrementing: boolean;
+}
 
 export const useCounter = () => {
-  const query = useCounterQuery();
-  const incrementMutation = useIncrementCounter();
-  const decrementMutation = useDecrementCounter();
+  const [state, setState] = useState<CounterState>({
+    counter: undefined,
+    isLoading: true,
+    isError: false,
+    error: null,
+    isIncrementing: false,
+    isDecrementing: false,
+  });
+
+  const hasInitiallyLoaded = useRef(false);
+
+  const fetchCounter = useCallback(async (isInitialLoad = false) => {
+    try {
+      setState(prev => ({ ...prev, isLoading: isInitialLoad, isError: false, error: null }));
+      
+      const data = await counterApi.getCounter();
+      setState(prev => ({ 
+        ...prev, 
+        counter: data.value, 
+        isLoading: false 
+      }));
+      
+      hasInitiallyLoaded.current = true;
+    } catch (error) {
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: hasInitiallyLoaded.current ? false : prev.isLoading,
+        isError: true, 
+        error: error instanceof Error ? error : new Error('Unknown error') 
+      }));
+    }
+  }, []);
+
+  const increment = useCallback(async () => {
+    try {
+      setState(prev => ({ ...prev, isIncrementing: true }));
+      
+      // Optimistic update
+      if (state.counter !== undefined) {
+        setState(prev => ({ ...prev, counter: prev.counter! + 1 }));
+      }
+      
+      const data = await counterApi.incrementCounter();
+      setState(prev => ({ 
+        ...prev, 
+        counter: data.value, 
+        isIncrementing: false 
+      }));
+    } catch (error) {
+      // Revert optimistic update on error
+      if (state.counter !== undefined) {
+        setState(prev => ({ ...prev, counter: prev.counter! - 1 }));
+      }
+      setState(prev => ({ 
+        ...prev, 
+        isIncrementing: false,
+        isError: true, 
+        error: error instanceof Error ? error : new Error('Unknown error') 
+      }));
+    }
+  }, [state.counter]);
+
+  const decrement = useCallback(async () => {
+    try {
+      setState(prev => ({ ...prev, isDecrementing: true }));
+      
+      // Optimistic update
+      if (state.counter !== undefined) {
+        setState(prev => ({ ...prev, counter: prev.counter! - 1 }));
+      }
+      
+      const data = await counterApi.decrementCounter();
+      setState(prev => ({ 
+        ...prev, 
+        counter: data.value, 
+        isDecrementing: false 
+      }));
+    } catch (error) {
+      // Revert optimistic update on error
+      if (state.counter !== undefined) {
+        setState(prev => ({ ...prev, counter: prev.counter! + 1 }));
+      }
+      setState(prev => ({ 
+        ...prev, 
+        isDecrementing: false,
+        isError: true, 
+        error: error instanceof Error ? error : new Error('Unknown error') 
+      }));
+    }
+  }, [state.counter]);
+
+  const refetch = useCallback(() => {
+    fetchCounter(false);
+  }, [fetchCounter]);
+
+  useEffect(() => {
+    fetchCounter(true);
+  }, [fetchCounter]);
 
   return {
-    counter: query.data?.value ?? 0,
-    
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error,
-    
-    isIncrementing: incrementMutation.isPending,
-    isDecrementing: decrementMutation.isPending,
-    
-    increment: incrementMutation.mutate,
-    decrement: decrementMutation.mutate,
-    
-    refetch: query.refetch,
+    counter: state.counter,
+    isLoading: state.isLoading,
+    isError: state.isError,
+    error: state.error,
+    isIncrementing: state.isIncrementing,
+    isDecrementing: state.isDecrementing,
+    increment,
+    decrement,
+    refetch,
   };
 }; 
