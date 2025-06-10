@@ -19,7 +19,7 @@ The infrastructure consists of several AWS services deployed in a modular archit
 ```mermaid
 graph TB
     CF[CloudFront<br/>CDN/HTTPS] --> S3[S3 Bucket<br/>Static Assets]
-    S3 --> FE[Frontend App<br/>React/Next.js]
+    S3 --> FE[Frontend App<br/>React]
     
     AG[API Gateway<br/>Rate Limiting] --> LF[Lambda Function<br/>Node.js/TS]
     LF --> DB[DynamoDB<br/>Counter Data]
@@ -148,57 +148,9 @@ lambda_memory_size = 256
 cloudwatch_log_retention_days = 14
 ```
 
-## Usage
-
-### 1. Initialize Terraform
-
-```bash
-cd infrastructure
-terraform init
-```
-
-### 2. Plan Deployment
-
-```bash
-terraform plan -var="lambda_image_uri=YOUR_ECR_URI"
-```
-
-### 3. Apply Changes
-
-```bash
-terraform apply -var="lambda_image_uri=YOUR_ECR_URI"
-```
-
-### 4. Destroy Resources (when needed)
-
-```bash
-terraform destroy -var="lambda_image_uri=YOUR_ECR_URI"
-```
-
-## Outputs
-
-After successful deployment, Terraform will output:
-
-- `api_url`: Backend API endpoint URL
-- `frontend_url`: CloudFront distribution URL
-- `frontend_bucket`: S3 bucket name for uploads
-- `api_key`: API key for rate limiting (sensitive)
-- `lambda_function_name`: Lambda function name
-
-## Monitoring
-
-The infrastructure includes basic logging:
-
-### Log Groups
-
-- API Gateway logs: `/aws/apigateway/acidizer-{env}`
-- Lambda logs: `/aws/lambda/acidizer-{env}-backend`
-
 ## Security Features
 
 ### S3 Security
-- Server-side encryption enabled (AES256)
-- Versioning enabled for file recovery
 - Public access controlled via bucket policy
 
 ### API Gateway Security
@@ -209,59 +161,10 @@ The infrastructure includes basic logging:
 
 ### Lambda Security
 - Minimal IAM permissions
-- Environment variable encryption
 
 ## Cost Optimization
-
 - CloudWatch log retention: 14 days (configurable)
 - Lambda: Pay-per-request pricing
 - S3: Standard storage class
 - CloudFront: Default price class
 - API Gateway: No reserved capacity
-
-## Scaling Considerations
-
-The infrastructure auto-scales based on:
-- **Lambda**: Concurrent execution scaling
-- **API Gateway**: Built-in auto-scaling
-- **CloudFront**: Global edge locations
-- **DynamoDB**: On-demand billing mode
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Lambda Permission Errors**
-   - Check IAM role permissions
-   - Verify ECR image URI
-
-2. **API Gateway 5XX Errors**
-   - Check Lambda function logs
-   - Verify DynamoDB table exists
-
-3. **CloudFront Cache Issues**
-   - Create invalidation for updated files
-   - Check S3 bucket policy
-
-### Useful Commands
-
-```bash
-# View Lambda logs
-aws logs tail /aws/lambda/acidizer-dev-backend --follow
-
-# Check API Gateway logs
-aws logs tail /aws/apigateway/acidizer-dev --follow
-
-# Create CloudFront invalidation
-aws cloudfront create-invalidation --distribution-id YOUR_ID --paths "/*"
-```
-
-## Contributing
-
-When making infrastructure changes:
-
-1. Update variable descriptions in `variables.tf`
-2. Add new outputs to `outputs.tf`
-3. Update this README with new features
-4. Test in development environment first
-5. Follow Terraform best practices 
