@@ -26,10 +26,10 @@ export const useCounter = () => {
     try {
       setState(prev => ({ ...prev, isLoading: isInitialLoad, isError: false, error: null }));
       
-      const data = await counterApi.getCounter();
+      const res = await counterApi.getCounter();
       setState(prev => ({ 
         ...prev, 
-        counter: data.value, 
+        counter: res.data.value, 
         isLoading: false 
       }));
       
@@ -53,10 +53,10 @@ export const useCounter = () => {
         setState(prev => ({ ...prev, counter: prev.counter! + 1 }));
       }
       
-      const data = await counterApi.incrementCounter();
+      const res = await counterApi.incrementCounter();
       setState(prev => ({ 
         ...prev, 
-        counter: data.value, 
+        counter: res.data.value, 
         isIncrementing: false 
       }));
     } catch (error) {
@@ -82,10 +82,10 @@ export const useCounter = () => {
         setState(prev => ({ ...prev, counter: prev.counter! - 1 }));
       }
       
-      const data = await counterApi.decrementCounter();
+      const res = await counterApi.decrementCounter();
       setState(prev => ({ 
         ...prev, 
-        counter: data.value, 
+        counter: res.data.value, 
         isDecrementing: false 
       }));
     } catch (error) {

@@ -1,3 +1,5 @@
 export interface CounterResponse {
-  value: number;
-} 
+  data: {
+    value: number;
+  }
+}
