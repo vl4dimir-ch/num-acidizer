@@ -4,9 +4,9 @@
 resource_exists() {
   local check_command=$1
   if eval "$check_command" > /dev/null 2>&1; then
-    return 0  # Resource exists
+    return 0
   else
-    return 1  # Resource doesn't exist
+    return 1
   fi
 }
 
@@ -28,13 +28,14 @@ import_or_create() {
 ENV=$1
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# Import Lambda function
+# Handle Lambda function
 LAMBDA_NAME="acidizer-${ENV}-backend"
 if LAMBDA_INFO=$(aws lambda get-function --function-name $LAMBDA_NAME 2>&1); then
-  echo "✅ Lambda function exists"
-  if ! terraform state list | grep -q "module.lambda.aws_lambda_function.backend"; then
-    terraform import module.lambda.aws_lambda_function.backend $LAMBDA_NAME
-  fi
+  echo "🗑️ Deleting existing Lambda function..."
+  aws lambda delete-function --function-name $LAMBDA_NAME
+  echo "✅ Lambda function deleted - will be recreated by Terraform"
+else
+  echo "✨ Lambda function doesn't exist, will be created by Terraform"
 fi
 
 # Import other resources
@@ -59,15 +60,25 @@ import_or_create \
   "terraform import module.frontend.aws_s3_bucket.frontend vc0-acidizer-${ENV}-frontend"
 
 # Import CloudWatch resources
-import_or_create \
-  "API Gateway Log Group" \
-  "aws logs describe-log-groups --log-group-name-prefix /aws/apigateway/acidizer-${ENV}" \
-  "terraform import module.monitoring.aws_cloudwatch_log_group.api_logs /aws/apigateway/acidizer-${ENV}"
+echo "🔍 Checking CloudWatch Log Groups..."
 
-import_or_create \
-  "Lambda Log Group" \
-  "aws logs describe-log-groups --log-group-name-prefix /aws/lambda/acidizer-${ENV}-backend" \
-  "terraform import module.monitoring.aws_cloudwatch_log_group.lambda_logs /aws/lambda/acidizer-${ENV}-backend"
+# API Gateway Log Group
+LOG_GROUP_NAME="/aws/apigateway/acidizer-${ENV}"
+if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" --query "logGroups[?logGroupName=='$LOG_GROUP_NAME'].logGroupName" --output text | grep -q .; then
+  echo "📥 API Gateway Log Group exists, importing to Terraform..."
+  terraform import module.monitoring.aws_cloudwatch_log_group.api_logs "$LOG_GROUP_NAME" || echo "⚠️ Import failed - resource may already be in state"
+else
+  echo "✨ API Gateway Log Group doesn't exist yet, will be created by Terraform"
+fi
+
+# Lambda Log Group
+LOG_GROUP_NAME="/aws/lambda/acidizer-${ENV}-backend"
+if aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP_NAME" --query "logGroups[?logGroupName=='$LOG_GROUP_NAME'].logGroupName" --output text | grep -q .; then
+  echo "📥 Lambda Log Group exists, importing to Terraform..."
+  terraform import module.monitoring.aws_cloudwatch_log_group.lambda_logs "$LOG_GROUP_NAME" || echo "⚠️ Import failed - resource may already be in state"
+else
+  echo "✨ Lambda Log Group doesn't exist yet, will be created by Terraform"
+fi
 
 # Setup API Gateway resources
 REST_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='acidizer-${ENV}-api'].id" --output text)

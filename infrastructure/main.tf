@@ -56,14 +56,61 @@ resource "aws_iam_role" "lambda_role" {
   tags = local.common_tags
 }
 
+# IAM policy for DynamoDB access
+resource "aws_iam_role_policy" "lambda_dynamodb_policy" {
+  name = "acidizer-${var.environment}-lambda-dynamodb-policy"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Resource = aws_dynamodb_table.counter.arn
+      }
+    ]
+  })
+}
+
+# IAM policy for CloudWatch Logs
+resource "aws_iam_role_policy" "lambda_logs_policy" {
+  name = "acidizer-${var.environment}-lambda-logs-policy"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:*"
+      }
+    ]
+  })
+}
+
 # Lambda module
 module "lambda" {
   source = "./modules/lambda"
 
-  name             = local.name
-  lambda_image_uri = var.lambda_image_uri
+  name              = local.name
+  lambda_image_uri  = var.lambda_image_uri
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_size
+  lambda_role_arn  = aws_iam_role.lambda_role.arn
+  dynamodb_table_name = aws_dynamodb_table.counter.name
   tags             = local.common_tags
 }
 

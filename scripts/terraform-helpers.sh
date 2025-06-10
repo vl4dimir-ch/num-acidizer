@@ -59,15 +59,6 @@ import_aws_resources() {
       echo "📥 Importing Lambda function..."
       terraform import module.lambda.aws_lambda_function.backend $LAMBDA_NAME
     fi
-    
-    # Update Lambda configuration and code
-    aws lambda update-function-configuration \
-      --function-name $LAMBDA_NAME \
-      --environment "Variables={DYNAMODB_TABLE_NAME=acidizer-${ENV}-counter}" || true
-    
-    aws lambda update-function-code \
-      --function-name $LAMBDA_NAME \
-      --image-uri ${TF_VAR_lambda_image_uri} || true
   else
     echo "✨ Lambda function will be created by Terraform"
   fi

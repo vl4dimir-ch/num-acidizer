@@ -3,4 +3,4 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
-CMD [ "dist/index.lambdaHandler" ] 
+CMD [ "dist/index.handler" ] 

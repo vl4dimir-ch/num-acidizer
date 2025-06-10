@@ -1,7 +1,7 @@
 {
-  "name": "hello-world-lambda",
+  "name": "acidizer-backend",
   "version": "1.0.0",
-  "description": "A simple Hello World Lambda function",
+  "description": "Acidizer Backend",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -24,6 +24,8 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.826.0",
+    "@aws-sdk/lib-dynamodb": "^3.826.0",
     "aws-lambda": "^1.0.7"
   }
 }
