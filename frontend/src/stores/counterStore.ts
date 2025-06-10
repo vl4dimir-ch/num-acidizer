@@ -1,14 +1,12 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useCounter } from '../features/counter/hooks/useCounter';
 
 interface CounterState {
-  // Local state for optimistic updates and UI state
   localCount: number;
   setLocalCount: (value: number) => void;
   
-  // Limits
   canIncrement: boolean;
   canDecrement: boolean;
   updateLimits: (count: number) => void;
@@ -54,12 +52,26 @@ export const useCounterStore = create<CounterState>()(
   )
 );
 
-// Custom hook that combines the store and API
 export const useCounterWithStore = () => {
   const { localCount, setLocalCount, canIncrement, canDecrement, updateLimits } = useCounterStore();
   const api = useCounter();
+  const lastActionTime = useRef<number>(0);
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
   
-  // Sync API data with local store
+  const trackAction = useCallback(() => {
+    lastActionTime.current = Date.now();
+  }, []);
+  
+  const increment = useCallback(() => {
+    trackAction();
+    return api.increment();
+  }, [api.increment, trackAction]);
+  
+  const decrement = useCallback(() => {
+    trackAction();
+    return api.decrement();
+  }, [api.decrement, trackAction]);
+  
   useEffect(() => {
     if (api.counter !== undefined) {
       setLocalCount(api.counter);
@@ -67,7 +79,28 @@ export const useCounterWithStore = () => {
     }
   }, [api.counter, setLocalCount, updateLimits]);
   
-  // Use API counter if available, otherwise fall back to local count
+  // Set up polling interval
+  useEffect(() => {
+    const startPolling = () => {
+      pollingInterval.current = setInterval(() => {
+        const timeSinceLastAction = Date.now() - lastActionTime.current;
+        const shouldPoll = timeSinceLastAction >= 5000;
+        
+        if (shouldPoll && !api.isIncrementing && !api.isDecrementing) {
+          api.refetch();
+        }
+      }, 5000);
+    };
+    
+    startPolling();
+    
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+      }
+    };
+  }, [api.refetch, api.isIncrementing, api.isDecrementing]);
+  
   const currentCount = api.counter ?? localCount;
   
   return {
@@ -81,12 +114,12 @@ export const useCounterWithStore = () => {
     isDecrementing: api.isDecrementing,
     
     // Actions
-    increment: api.increment,
-    decrement: api.decrement,
+    increment,
+    decrement,
     
-    // Limits
-    canIncrement: canIncrement && !api.isIncrementing,
-    canDecrement: canDecrement && !api.isDecrementing,
+    // Limits - disable both buttons when any operation is in progress
+    canIncrement: canIncrement && !api.isIncrementing && !api.isDecrementing,
+    canDecrement: canDecrement && !api.isIncrementing && !api.isDecrementing,
     
     // Utilities
     refetch: api.refetch,

@@ -34,6 +34,10 @@ jobs:
         with:
           cache-path: backend/package-lock.json
 
+      - uses: ./.github/actions/setup-node
+        with:
+          cache-path: frontend/package-lock.json
+
       - uses: ./.github/actions/setup-aws-terraform
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
