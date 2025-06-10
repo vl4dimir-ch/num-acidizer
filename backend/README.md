@@ -1,67 +1,22 @@
-# Hello World Lambda Function
+# Acidizer Backend
 
-A simple AWS Lambda function that returns "Hello World" for any incoming request.
+A serverless backend service built with AWS Lambda and DynamoDB, providing a simple counter API.
 
-## Project Structure
+## Tech Stack
 
-```
-src/
-  ├── handlers/       # Lambda handlers
-  ├── services/      # Business logic
-  └── index.ts       # Main entry point
-```
+- **Runtime**: Node.js 20
+- **Language**: TypeScript
+- **Framework**: AWS Lambda
+- **Database**: Amazon DynamoDB
 
-## Prerequisites
+## Main Dependencies
 
-- Node.js 18 or later
-- Docker (for building and running the container)
-- AWS CLI (for deployment)
+- `aws-lambda`: AWS Lambda runtime
+- `@aws-sdk/client-dynamodb`: DynamoDB client
+- `@aws-sdk/lib-dynamodb`: DynamoDB utilities
 
-## Development
+## API Endpoints
 
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Build the TypeScript code:
-```bash
-npm run build
-```
-
-3. Run linting:
-```bash
-npm run lint
-```
-
-## Docker
-
-Build the Docker image:
-```bash
-docker build -t hello-world-lambda .
-```
-
-## Deployment
-
-1. Authenticate to AWS ECR:
-```bash
-aws ecr get-login-password --region YOUR_REGION | docker login --username AWS --password-stdin YOUR_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com
-```
-
-2. Tag and push the image:
-```bash
-docker tag hello-world-lambda:latest YOUR_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/hello-world-lambda:latest
-docker push YOUR_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/hello-world-lambda:latest
-```
-
-3. Update the Lambda function to use the new image version through the AWS Console or CLI.
-
-## API Response
-
-The API will return a JSON response in the following format:
-
-```json
-{
-  "message": "Hello World"
-}
-``` 
+- `GET /counter`: Get current counter value
+- `POST /counter/increment`: Increment counter
+- `POST /counter/decrement`: Decrement counter
