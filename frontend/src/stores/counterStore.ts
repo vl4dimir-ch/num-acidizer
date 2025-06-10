@@ -14,6 +14,7 @@ interface CounterState {
 
 const MIN_COUNT = 0;
 const MAX_COUNT = 1_000_000_000;
+const POLLING_INTERVAL_MS = 5000;
 
 export const useCounterStore = create<CounterState>()(
   devtools(
@@ -79,17 +80,16 @@ export const useCounterWithStore = () => {
     }
   }, [api.counter, setLocalCount, updateLimits]);
   
-  // Set up polling interval
   useEffect(() => {
     const startPolling = () => {
       pollingInterval.current = setInterval(() => {
         const timeSinceLastAction = Date.now() - lastActionTime.current;
-        const shouldPoll = timeSinceLastAction >= 5000;
+        const shouldPoll = timeSinceLastAction >= POLLING_INTERVAL_MS;
         
         if (shouldPoll && !api.isIncrementing && !api.isDecrementing) {
           api.refetch();
         }
-      }, 5000);
+      }, POLLING_INTERVAL_MS);
     };
     
     startPolling();
@@ -106,22 +106,18 @@ export const useCounterWithStore = () => {
   return {
     count: currentCount,
     
-    // API states
     isLoading: api.isLoading,
     isError: api.isError,
     error: api.error,
     isIncrementing: api.isIncrementing,
     isDecrementing: api.isDecrementing,
     
-    // Actions
     increment,
     decrement,
     
-    // Limits - disable both buttons when any operation is in progress
     canIncrement: canIncrement && !api.isIncrementing && !api.isDecrementing,
     canDecrement: canDecrement && !api.isIncrementing && !api.isDecrementing,
     
-    // Utilities
     refetch: api.refetch,
   };
 }; 

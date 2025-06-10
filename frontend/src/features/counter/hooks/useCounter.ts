@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { counterApi } from '../api/counter.api';
+import { counterApi } from '../api/counterApi';
 
 interface CounterState {
   counter: number | undefined;
