@@ -1,6 +1,6 @@
 import { useCounterWithStore } from '../../../stores/counterStore';
 import { Button } from '../../../components/ui/Button';
-import { useCounterAnimation } from '../hooks/useCounterAnimation';
+import { useAnimatedCount } from '../hooks/useAnimatedCount';
 import { LoadingCounter } from './LoadingCounter';
 import { ErrorCounter } from './ErrorCounter';
 
@@ -19,7 +19,7 @@ export function Counter() {
     refetch,
   } = useCounterWithStore();
   
-  const displayCount = useCounterAnimation(count);
+  const displayCount = useAnimatedCount(count);
 
   const handleIncrement = () => {
     increment();

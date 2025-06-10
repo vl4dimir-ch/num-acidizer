@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function useCounterAnimation(targetCount: number) {
+export function useAnimatedCount(targetCount: number) {
   const [displayCount, setDisplayCount] = useState(() => targetCount);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
