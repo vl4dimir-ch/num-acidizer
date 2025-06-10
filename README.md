@@ -22,7 +22,6 @@ Acidizer is a modern, cloud-native distributed counter application built with a 
 - **Vite** - Fast build tool and development server
 - **Tailwind CSS 4** - Utility-first CSS framework
 - **Zustand** - Lightweight state management
-- **React Query (TanStack Query)** - Server state management and caching
 - **ESLint** - Code linting and formatting
 
 ### Backend
@@ -70,86 +69,10 @@ Acidizer is a modern, cloud-native distributed counter application built with a 
 - **Error Recovery**: Automatic retry mechanisms with user feedback
 - **Responsive Design**: Works across all device sizes
 
-## What Could Be Improved
-
-### 1. **Authentication & Authorization**
-- **Current State**: No user authentication - anyone can modify the counter
-- **Improvement**: Add user authentication (AWS Cognito, Auth0, or similar)
-- **Benefits**: User-specific counters, access control, audit trails
-
-### 2. **Real-time Updates**
-- **Current State**: Counter updates only when user performs actions
-- **Improvement**: WebSocket connection or Server-Sent Events for real-time updates
-- **Benefits**: Multiple users would see live updates from other users
-
-### 3. **Database Optimization**
-- **Current State**: Simple DynamoDB table without advanced features
-- **Improvements**:
-  - Add DynamoDB Streams for audit logging
-  - Implement Point-in-Time Recovery
-  - Add Global Tables for multi-region support
-  - Consider caching layer (ElastiCache/Redis)
-
-### 4. **Enhanced Monitoring & Observability**
-- **Current State**: Basic CloudWatch logging
-- **Improvements**:
-  - Add distributed tracing (AWS X-Ray)
-  - Custom metrics and dashboards
-  - Error tracking (Sentry, Rollbar)
-  - Performance monitoring (RUM)
-  - Alerting on critical thresholds
-
-### 5. **Testing Strategy**
-- **Current State**: Minimal testing setup
-- **Improvements**:
-  - Unit tests for all components and services
-  - Integration tests for API endpoints
-  - End-to-end tests with Playwright/Cypress
-  - Load testing for scalability validation
-  - Contract testing between frontend and backend
-
-### 6. **Security Enhancements**
-- **Current State**: Basic API Gateway security
-- **Improvements**:
-  - API key authentication
-  - WAF (Web Application Firewall)
-  - Rate limiting per user/IP
-  - CORS configuration refinement
-  - Security headers (HSTS, CSP, etc.)
-
-### 7. **Developer Experience**
-- **Current State**: Basic development setup
-- **Improvements**:
-  - Local development with Docker Compose
-  - Hot reload for backend development
-  - API documentation (OpenAPI/Swagger)
-  - Better error messages and debugging
-  - Development environment provisioning
-
-### 8. **Scalability & Performance**
-- **Current State**: Single-region deployment
-- **Improvements**:
-  - Multi-region deployment
-  - Auto-scaling configuration
-  - CDN optimization
-  - Bundle size optimization
-  - Database read replicas
-  - Implement caching strategies
-
-### 9. **Infrastructure Improvements**
-- **Current State**: Basic Terraform setup
-- **Improvements**:
-  - Terraform modules for reusability
-  - Multi-environment support (dev/staging/prod)
-  - Terraform state management (S3 backend)
-  - Infrastructure testing (Terratest)
-  - Cost optimization policies
-  - Major refactoring
-
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20 or newer
 - AWS CLI configured
 - Terraform installed
 - Docker (for backend deployment)
@@ -167,6 +90,17 @@ npm install
 npm run start
 ```
 
+### Deployment
+```bash
+# Deploy infrastructure
+cd infrastructure
+terraform init
+terraform plan
+terraform apply
+
+# Application is also deployed via GitHub Actions
+```
+
 ## Project Structure
 ```
 acidizer/
@@ -176,7 +110,3 @@ acidizer/
 ├── .github/          # GitHub Actions workflows
 └── scripts/          # Deployment and utility scripts
 ```
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).

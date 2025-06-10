@@ -88,19 +88,5 @@ export const apiClient = {
     });
   },
 
-  put: async <T = unknown>(
-    endpoint: string,
-    body?: unknown,
-    options?: RequestInit
-  ): Promise<ApiResponse<T>> => {
-    return apiRequest<T>(endpoint, {
-      ...options,
-      method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  },
-
-  delete: async <T = unknown>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> => {
-    return apiRequest<T>(endpoint, { ...options, method: 'DELETE' });
-  },
+  // put, delete
 }; 

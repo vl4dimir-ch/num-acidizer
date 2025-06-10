@@ -1,5 +1,5 @@
 import { apiClient } from '../../../lib/api/client';
-import type { CounterResponse } from './counter.types';
+import type { CounterResponse } from './counterTypes';
 
 export const counterApi = {
   getCounter: async (): Promise<CounterResponse> => {
