@@ -7,7 +7,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   circle?: boolean;
 }
 
-const Button = ({ 
+export const Button = ({ 
   className, 
   variant = 'primary', 
   size = 'md', 
@@ -37,5 +37,3 @@ const Button = ({
     />
   );
 };
-
-export { Button }; 
