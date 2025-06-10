@@ -40,31 +40,6 @@ Acidizer is a modern, cloud-native distributed counter application built with a 
 - **CloudWatch** - Monitoring and logging
 - **GitHub Actions** - CI/CD pipeline
 
-## Architecture
-
-```mermaid
-graph LR
-    %% Client and Frontend
-    Client[Browser] --> CF[CloudFront]
-    CF --> Frontend[React Frontend<br/>S3 Static Website]
-    
-    %% Backend Flow
-    Frontend --> APIGW[API Gateway]
-    APIGW --> Lambda[Lambda Backend]
-    Lambda --> DDB[DynamoDB]
-    
-    %% Monitoring
-    Lambda --> CW[CloudWatch]
-    APIGW --> CW
-    
-    %% Styling
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#232F3E
-    classDef app fill:#3B48CC,stroke:#232F3E,stroke-width:2px,color:white
-    
-    class CF,APIGW,Lambda,DDB,CW aws
-    class Client,Frontend app
-```
-
 ### Core Components
 
 **Frontend**:
@@ -190,18 +165,6 @@ npm run dev
 cd backend
 npm install
 npm run start
-```
-
-### Deployment
-```bash
-# Deploy infrastructure
-cd infrastructure
-terraform init
-terraform plan
-terraform apply
-
-# Deploy application via GitHub Actions
-git push origin main
 ```
 
 ## Project Structure
